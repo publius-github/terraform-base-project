@@ -9,7 +9,7 @@ MODULE="${1}"
 ENVIRONMENT="${2}"
 ACTION="${3}"
 
-if [[ "${MODULE}" == "accounts" || "${MODULE}" == "infrastructure" ]]; then
+if [[ "${MODULE}" == "accounts" || "${MODULE}" == "infrastructure" || "${MODULE}" == "general" ]]; then
   TF_PATH="${MODULE}"
 else
   TF_PATH="${MODULE}/${ENVIRONMENT}"
