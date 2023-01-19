@@ -10,15 +10,15 @@ ENVIRONMENT="${2}"
 ACTION="${3}"
 
 if [[ "${MODULE}" == "accounts" || "${MODULE}" == "infrastructure" || "${MODULE}" == "general" ]]; then
-  TF_PATH="${MODULE}"
+  TF_PATH="terraform/${MODULE}"
 else
-  TF_PATH="${MODULE}/${ENVIRONMENT}"
+  TF_PATH="terraform/${MODULE}/${ENVIRONMENT}"
 fi
 
 CONTAINER_NAME="$(date +%s)_workspaces_terraforming"
-TERRAFORM_VERSION=$(cat "${SCRIPT_DIR}"/../../terraform/"${TF_PATH}"/.terraform_version)
-TARGET_FOLDER="${SCRIPT_DIR}/../../terraform/${TF_PATH}/"
-TF_FOLDER="${SCRIPT_DIR}/../../terraform"
+TERRAFORM_VERSION=$(cat "${SCRIPT_DIR}"/../../"${TF_PATH}"/.terraform_version)
+ROOT_FOLDER="${SCRIPT_DIR}/../../"
+TF_FOLDER="${SCRIPT_DIR}/../../terraform/"
 
 function setup_colors {
   if [[ -t 2 ]] && [[ -z "${NO_COLOR-}" ]] && [[ "${TERM-}" != "dumb" ]]; then
@@ -35,9 +35,7 @@ function usage {
   printf "%s\n${YELLOW}terraform.sh script allows you to manage terraform in docker${NOFORMAT}\n\n"
   cat <<EOF
 Usage: $(basename "${BASH_SOURCE[0]}") [global options] <subcommand> [args]
-
 Script description here.
-
 Examples:
 $(basename "${BASH_SOURCE[0]}") MODULE ENVIRONMENT ACTION"
 $(basename "${BASH_SOURCE[0]}") envs nonprod plan/apply/destroy
@@ -57,7 +55,7 @@ function cleanup {
   --rm \
   --env USER_ID="${USER_ID}" \
   --env GROUP_ID="${GROUP_ID}" \
-  --volume "${TARGET_FOLDER}:/infrastructure" \
+  --volume "${ROOT_FOLDER}:/infrastructure" \
   --workdir /infrastructure \
   busybox \
   chown -R "${USER_ID}":"${GROUP_ID}" plan.out .terraform > /dev/null 2>&1 || true
@@ -65,14 +63,12 @@ function cleanup {
 }
 
 function terraform_init {
-  cd "${TARGET_FOLDER}"
-
   printf "%s\n${GREEN}==> Starting terraform init container...${NOFORMAT}\n"
   docker run \
   --rm \
   --name "${CONTAINER_NAME}_init" \
   --volume "${HOME}/.aws:/root/.aws" \
-  --volume "${TF_FOLDER}:/infrastructure" \
+  --volume "${ROOT_FOLDER}:/infrastructure" \
   --env "${MODULE}" \
   --env "${ENVIRONMENT}" \
   --workdir /infrastructure/"${TF_PATH}" \
@@ -90,7 +86,7 @@ function terraform_plan {
   --env USER_ID="$(id -u)" \
   --env GROUP_ID="$(id -g)" \
   --volume "${HOME}/.aws:/root/.aws" \
-  --volume "${TF_FOLDER}:/infrastructure" \
+  --volume "${ROOT_FOLDER}:/infrastructure" \
   --workdir /infrastructure/"${TF_PATH}" \
   hashicorp/terraform:"${TERRAFORM_VERSION}" \
   plan -out=plan.out -input=false
@@ -106,7 +102,7 @@ function terraform_apply {
   --rm \
   --name "${CONTAINER_NAME}_apply" \
   --volume "${HOME}/.aws:/root/.aws" \
-  --volume "${TF_FOLDER}:/infrastructure" \
+  --volume "${ROOT_FOLDER}:/infrastructure" \
   --workdir /infrastructure/"${TF_PATH}" \
   --entrypoint="/bin/sh" \
   hashicorp/terraform:"${TERRAFORM_VERSION}" \
@@ -123,7 +119,7 @@ function terraform_destroy {
   --rm \
   --name "${CONTAINER_NAME}_destroy" \
   --volume "${HOME}/.aws:/root/.aws" \
-  --volume "${TF_FOLDER}:/infrastructure" \
+  --volume "${ROOT_FOLDER}:/infrastructure" \
   --workdir /infrastructure/"${TF_PATH}" \
   --entrypoint="/bin/sh" \
   hashicorp/terraform:"${TERRAFORM_VERSION}" \
