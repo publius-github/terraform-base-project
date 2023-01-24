@@ -72,12 +72,29 @@ function terraform_init {
   --env "${MODULE}" \
   --env "${ENVIRONMENT}" \
   --workdir /infrastructure/"${TF_PATH}" \
+  --entrypoint="/bin/sh" \
   hashicorp/terraform:"${TERRAFORM_VERSION}" \
-  init -input=false
+  -c "git config --global --add safe.directory '*' && terraform init -input=false"
+}
+
+function terraform_workspaces {
+  docker run \
+  --rm \
+  --name "${CONTAINER_NAME}_plan" \
+  --env USER_ID="$(id -u)" \
+  --env GROUP_ID="$(id -g)" \
+  --volume "${HOME}/.aws:/root/.aws" \
+  --volume "${HOME}/.ssh:/root/.ssh" \
+  --volume "${ROOT_FOLDER}:/infrastructure" \
+  --workdir /infrastructure/"${TF_PATH}" \
+  --entrypoint="/bin/sh" \
+  hashicorp/terraform:"${TERRAFORM_VERSION}" \
+  -c "terraform workspace select ${ENVIRONMENT} || terraform workspace new ${ENVIRONMENT}"
 }
 
 function terraform_plan {
   terraform_init
+  terraform_workspaces
 
   printf "%s\n${GREEN}==> Starting terraform plan container...${NOFORMAT}\n"
   docker run \
@@ -86,6 +103,7 @@ function terraform_plan {
   --env USER_ID="$(id -u)" \
   --env GROUP_ID="$(id -g)" \
   --volume "${HOME}/.aws:/root/.aws" \
+  --volume "${HOME}/.ssh:/root/.ssh" \
   --volume "${ROOT_FOLDER}:/infrastructure" \
   --workdir /infrastructure/"${TF_PATH}" \
   hashicorp/terraform:"${TERRAFORM_VERSION}" \
